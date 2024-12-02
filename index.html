@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Update</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            width: 60%;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            background-color: #f0f0f0;
+            border-radius: 25px;
+            padding: 3px;
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 30px;
+            background-color: #4CAF50;
+            border-radius: 20px;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            font-weight: bold;
+        }
+
+        #statusMessage {
+            margin-top: 15px;
+            font-size: 18px;
+            color: #333;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Update Files</h1>
+        <button id="updateButton">Update</button>
+
+        <!-- Progress bar container -->
+        <div class="progress-container">
+            <div id="progressBar" class="progress-bar">0%</div>
+        </div>
+
+        <!-- Status message -->
+        <div id="statusMessage">Click "Update" to start the process.</div>
+    </div>
+
+    <script>
+        let intervalId = null;
+
+        document.getElementById('updateButton').addEventListener('click', function() {
+            const statusMessage = document.getElementById('statusMessage');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Start the process and show message
+            statusMessage.textContent = 'Processing... Please wait.';
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+
+            // Send initial request to process.php
+            fetch('process.php', { method: 'POST' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP error! Status: ' + response.status);
+                    }
+                    return response.text();
+                })
+                .then(() => {
+                    // Poll for progress updates every second
+                    intervalId = setInterval(() => {
+                        fetch('progress.php') // This file will return the current progress
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    progressBar.style.width = data.progress + '%';
+                                    progressBar.textContent = data.progress + '%';
+                                    statusMessage.textContent = data.message;
+
+                                    // Stop polling when finished
+                                    if (data.progress === 100) {
+                                        clearInterval(intervalId);
+                                        statusMessage.textContent = 'All files processed successfully!';
+                                    }
+                                } else {
+                                    statusMessage.textContent = 'Error: ' + data.error;
+                                    clearInterval(intervalId);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching progress:', error);
+                                clearInterval(intervalId);
+                                statusMessage.textContent = 'An unexpected error occurred.';
+                            });
+                    }, 1000); // Poll every 1 second
+                })
+                .catch(error => {
+                    console.error('Error during process start:', error);
+                    statusMessage.textContent = 'An unexpected error occurred.';
+                });
+        });
+    </script>
+
+</body>
+</html>
